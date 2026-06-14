@@ -5,6 +5,7 @@
 ## MVPの範囲
 
 - 札幌市ヒグマ出没情報CSVをJSONに変換
+- 札幌市公式ヒグマ出没情報ページも補助ソースとして取り込み
 - GitHub Actionsで毎朝JSONを作り直し、GitHub Pagesで配信
 - iOSアプリ起動時にGitHub PagesのJSONを取得
 - 取得失敗時はキャッシュ、それもなければアプリ内の同梱JSONを表示
@@ -41,12 +42,17 @@
 
 1. GitHub Actionsが毎朝5時ごろ、札幌市CKAN APIを確認します。
 2. CKANのCSVリソース一覧から、最新年のCSVを選びます。
-3. CSVを `bear_sightings.json` に変換します。
-4. `bear_sightings.json` と `bear_sightings_metadata.json` をGitHub Pagesに公開します。
-5. iOSアプリは起動時にGitHub PagesのJSONを取得します。
-6. 取得できたらキャッシュに保存します。
-7. 取得できない場合は、前回キャッシュを使います。
-8. キャッシュもない場合は、アプリ内に同梱したJSONを使います。
+3. 札幌市公式ヒグマ出没情報ページも取得します。
+4. CKAN CSVと公式ページHTMLを同じ形式に正規化します。
+5. `date + place + detail` と近い緯度経度を使って重複を除去します。
+6. メタデータ付きの `bear_sightings.json` を生成します。
+7. `bear_sightings.json` と `bear_sightings_metadata.json` をGitHub Pagesに公開します。
+8. iOSアプリは起動時にGitHub PagesのJSONを取得します。
+9. 取得できたらキャッシュに保存します。
+10. 取得できない場合は、前回キャッシュを使います。
+11. キャッシュもない場合は、アプリ内に同梱したJSONを使います。
+
+公式ページのHTML構造が変わってパースに失敗した場合でも、workflow全体は止めません。その場合はCKANデータだけでJSONを生成し、メタデータ上で公式ページソースを `failed` として記録します。
 
 ## GitHub Pagesの設定
 
@@ -89,7 +95,7 @@ https://taro.github.io/kuma-yoke-meter/bear_sightings.json
 
 ## 手元でJSONを作り直す
 
-CSVからアプリ同梱JSONを作り直すには、プロジェクト直下で次を実行します。通常はCKAN APIから最新CSVを自動選択します。
+CKAN CSVと公式ページからアプリ同梱JSONを作り直すには、プロジェクト直下で次を実行します。通常はCKAN APIから最新CSVを自動選択し、公式ページも補助ソースとして取り込みます。
 
 ```bash
 python3 Tools/convert_sapporo_bear_csv.py
@@ -109,6 +115,12 @@ python3 Tools/convert_sapporo_bear_csv.py \
 
 ```bash
 python3 Tools/convert_sapporo_bear_csv.py --url "CSVのURL"
+```
+
+公式ページの取り込みを一時的に止め、CKANだけで作る場合は次を使います。
+
+```bash
+python3 Tools/convert_sapporo_bear_csv.py --skip-official-page
 ```
 
 ## 注意

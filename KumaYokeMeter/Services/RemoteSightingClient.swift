@@ -17,7 +17,7 @@ struct RemoteSightingClient {
         self.remoteURL = remoteURL
     }
 
-    func fetchSightings() async throws -> [BearSighting] {
+    func fetchFeed() async throws -> SightingFeed {
         guard let remoteURL else {
             throw ClientError.missingURL
         }
@@ -28,7 +28,7 @@ struct RemoteSightingClient {
             throw ClientError.invalidResponse
         }
 
-        return try JSONDecoder().decode([BearSighting].self, from: data)
+        return try SightingFeed.decode(from: data, fallbackSourceName: "GitHub Pages")
     }
 
     private static var defaultRemoteURL: URL? {
@@ -46,4 +46,3 @@ struct RemoteSightingClient {
         return URL(string: trimmed)
     }
 }
-

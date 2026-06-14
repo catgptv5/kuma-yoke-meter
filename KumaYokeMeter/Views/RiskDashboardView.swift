@@ -28,7 +28,8 @@ struct RiskDashboardView: View {
                         summary: summary,
                         totalCount: sightingStore.sightings.count,
                         dataSource: sightingStore.dataSource,
-                        isRefreshing: sightingStore.isRefreshing
+                        isRefreshing: sightingStore.isRefreshing,
+                        feed: sightingStore.feed
                     )
                 } else {
                     MissingLocationPanel()
@@ -208,7 +209,7 @@ private struct NearbySightingsList: View {
                 .font(.headline)
 
             if sightings.isEmpty {
-                Text("該当する同梱データはありません。")
+                Text("該当する表示データはありません。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -249,6 +250,7 @@ private struct DataFreshnessNote: View {
     let totalCount: Int
     let dataSource: SightingDataSource
     let isRefreshing: Bool
+    let feed: SightingFeed?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -259,14 +261,88 @@ private struct DataFreshnessNote: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            if let latest = summary.latestSightingDate {
-                Text("表示データの最新日: \(latest.formatted(date: .numeric, time: .omitted))")
+            if let generatedAtText {
+                Text("データ生成日時: \(generatedAtText)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+
+            if let latestText {
+                Text("データ最終出没日: \(latestText)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(feed?.sources ?? []) { source in
+                Text("\(source.name): \(source.recordCount)件 / 最新 \(source.latestSightingDate ?? "不明")")
+                    .font(.caption)
+                    .foregroundStyle(source.status == "ok" ? .secondary : .orange)
+            }
+
+            if let staleWarningText {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(staleWarningText, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.orange)
+
+                    Link("札幌市公式情報を確認", destination: URL(string: "https://www.city.sapporo.jp/kurashi/animal/choju/kuma/syutsubotsu/")!)
+                        .font(.footnote.weight(.semibold))
+                }
+                .padding(.top, 4)
             }
         }
         .padding(12)
         .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var latestText: String? {
+        if let latestSightingDate = feed?.latestSightingDate {
+            return latestSightingDate
+        }
+
+        return summary.latestSightingDate.map {
+            $0.formatted(date: .numeric, time: .omitted)
+        }
+    }
+
+    private var generatedAtText: String? {
+        guard let generatedAt = feed?.generatedAt else {
+            return nil
+        }
+
+        if let date = DateParser.iso8601Date(from: generatedAt) {
+            return date.formatted(date: .numeric, time: .shortened)
+        }
+
+        return generatedAt
+    }
+
+    private var staleWarningText: String? {
+        guard let latestSightingDate = feed?.latestSightingDate,
+              let latestDate = SightingDateParser.date(dateString: latestSightingDate, timeString: "") else {
+            return nil
+        }
+
+        let staleDate = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        guard latestDate < staleDate else {
+            return nil
+        }
+
+        return "注意: データ最終出没日が古いです。この日以降の情報が札幌市公式ページに掲載されている可能性があります。"
+    }
+}
+
+private enum DateParser {
+    static func iso8601Date(from text: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractionalFormatter.date(from: text) {
+            return date
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: text)
     }
 }
 

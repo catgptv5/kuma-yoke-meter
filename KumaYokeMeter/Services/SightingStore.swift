@@ -21,6 +21,7 @@ enum SightingDataSource {
 @MainActor
 final class SightingStore: ObservableObject {
     @Published private(set) var sightings: [BearSighting] = []
+    @Published private(set) var feed: SightingFeed?
     @Published private(set) var loadError: String?
     @Published private(set) var dataSource: SightingDataSource = .bundled
     @Published private(set) var isRefreshing = false
@@ -54,10 +55,9 @@ final class SightingStore: ObservableObject {
         defer { isRefreshing = false }
 
         do {
-            let remoteSightings = try await remoteClient.fetchSightings()
-            try saveCache(remoteSightings)
-            sightings = remoteSightings
-            dataSource = .remote
+            let remoteFeed = try await remoteClient.fetchFeed()
+            try saveCache(remoteFeed)
+            apply(remoteFeed, source: .remote)
             loadError = nil
         } catch {
             if sightings.isEmpty {
@@ -76,11 +76,12 @@ final class SightingStore: ObservableObject {
 
         do {
             let data = try Data(contentsOf: url)
-            sightings = try JSONDecoder().decode([BearSighting].self, from: data)
-            dataSource = .bundled
+            let bundledFeed = try SightingFeed.decode(from: data, fallbackSourceName: "同梱JSON")
+            apply(bundledFeed, source: .bundled)
             loadError = nil
         } catch {
             sightings = []
+            feed = nil
             loadError = "ヒグマ出没データを読み込めませんでした: \(error.localizedDescription)"
         }
     }
@@ -88,8 +89,8 @@ final class SightingStore: ObservableObject {
     private func loadCachedData() -> Bool {
         do {
             let data = try Data(contentsOf: cacheURL)
-            sightings = try JSONDecoder().decode([BearSighting].self, from: data)
-            dataSource = .cache
+            let cachedFeed = try SightingFeed.decode(from: data, fallbackSourceName: "キャッシュ")
+            apply(cachedFeed, source: .cache)
             loadError = nil
             return true
         } catch {
@@ -97,16 +98,22 @@ final class SightingStore: ObservableObject {
         }
     }
 
-    private func saveCache(_ sightings: [BearSighting]) throws {
-        let data = try JSONEncoder().encode(sightings)
+    private func saveCache(_ feed: SightingFeed) throws {
+        let data = try JSONEncoder().encode(feed)
         try data.write(to: cacheURL, options: [.atomic])
+    }
+
+    private func apply(_ feed: SightingFeed, source: SightingDataSource) {
+        self.feed = feed
+        sightings = feed.records
+        dataSource = source
     }
 }
 
 extension SightingStore {
     static var preview: SightingStore {
         let store = SightingStore(loadImmediately: false)
-        store.sightings = [
+        let sightings = [
             BearSighting(
                 id: "preview-1",
                 date: "2026-06-10",
@@ -130,6 +137,23 @@ extension SightingStore {
                 sourceYear: 2026
             )
         ]
+        store.sightings = sightings
+        store.feed = SightingFeed(
+            schemaVersion: 2,
+            generatedAt: "2026-06-14T12:00:00+09:00",
+            recordCount: sightings.count,
+            latestSightingDate: "2026-06-10",
+            sources: [
+                SightingSourceSummary(
+                    name: "札幌市公式ヒグマ出没情報ページ",
+                    sourceType: "official_page",
+                    sourceURL: "https://www.city.sapporo.jp/kurashi/animal/choju/kuma/syutsubotsu/",
+                    latestSightingDate: "2026-06-10",
+                    recordCount: sightings.count
+                )
+            ],
+            records: sightings
+        )
         return store
     }
 }

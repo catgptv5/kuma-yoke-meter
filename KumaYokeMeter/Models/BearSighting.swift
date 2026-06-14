@@ -11,6 +11,37 @@ struct BearSighting: Codable, Identifiable, Equatable {
     let longitude: Double
     let detail: String
     let sourceYear: Int
+    let sourceType: String?
+    let sourceName: String?
+    let sourceURL: String?
+
+    init(
+        id: String,
+        date: String,
+        time: String,
+        ward: String,
+        place: String,
+        latitude: Double,
+        longitude: Double,
+        detail: String,
+        sourceYear: Int,
+        sourceType: String? = nil,
+        sourceName: String? = nil,
+        sourceURL: String? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.time = time
+        self.ward = ward
+        self.place = place
+        self.latitude = latitude
+        self.longitude = longitude
+        self.detail = detail
+        self.sourceYear = sourceYear
+        self.sourceType = sourceType
+        self.sourceName = sourceName
+        self.sourceURL = sourceURL
+    }
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -25,6 +56,78 @@ struct BearSighting: Codable, Identifiable, Equatable {
             return date
         }
         return "\(date) \(time)"
+    }
+}
+
+struct SightingSourceSummary: Codable, Equatable, Identifiable {
+    var id: String {
+        "\(sourceType)-\(name)"
+    }
+
+    let name: String
+    let sourceType: String
+    let sourceURL: String?
+    let status: String
+    let latestSightingDate: String?
+    let recordCount: Int
+    let error: String?
+
+    init(
+        name: String,
+        sourceType: String,
+        sourceURL: String? = nil,
+        status: String = "ok",
+        latestSightingDate: String? = nil,
+        recordCount: Int,
+        error: String? = nil
+    ) {
+        self.name = name
+        self.sourceType = sourceType
+        self.sourceURL = sourceURL
+        self.status = status
+        self.latestSightingDate = latestSightingDate
+        self.recordCount = recordCount
+        self.error = error
+    }
+}
+
+struct SightingFeed: Codable, Equatable {
+    let schemaVersion: Int
+    let generatedAt: String?
+    let recordCount: Int
+    let latestSightingDate: String?
+    let sources: [SightingSourceSummary]
+    let records: [BearSighting]
+
+    static func decode(from data: Data, fallbackSourceName: String) throws -> SightingFeed {
+        let decoder = JSONDecoder()
+
+        if let feed = try? decoder.decode(SightingFeed.self, from: data) {
+            return feed
+        }
+
+        let records = try decoder.decode([BearSighting].self, from: data)
+        let latestDate = records.compactMap(\.observedAt).max()
+        let latestDateText = latestDate.map {
+            DateFormatter.sightingDate.string(from: $0)
+        }
+
+        return SightingFeed(
+            schemaVersion: 1,
+            generatedAt: nil,
+            recordCount: records.count,
+            latestSightingDate: latestDateText,
+            sources: [
+                SightingSourceSummary(
+                    name: fallbackSourceName,
+                    sourceType: "legacy",
+                    status: "ok",
+                    latestSightingDate: latestDateText,
+                    recordCount: records.count
+                )
+            ],
+            records: records
+        )
     }
 }
 
@@ -53,3 +156,13 @@ enum SightingDateParser {
     }
 }
 
+private extension DateFormatter {
+    static let sightingDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = SightingDateParser.sapporoTimeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+}

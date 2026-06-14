@@ -229,6 +229,16 @@ private struct SightingDetailSheet: View {
                     Text(sighting.detail)
                 }
 
+                if let sourceName = sighting.sourceName {
+                    Section("出典") {
+                        Text(sourceName)
+                        if let sourceURL = sighting.sourceURL,
+                           let url = URL(string: sourceURL) {
+                            Link("出典ページを開く", destination: url)
+                        }
+                    }
+                }
+
                 if let distanceText {
                     Section("判定地点から") {
                         Text(distanceText)
@@ -268,4 +278,3 @@ private extension MKCoordinateRegion {
     .environmentObject(UserLocationManager.preview)
     .environmentObject(TripPlanner())
 }
-

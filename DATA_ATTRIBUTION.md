@@ -9,5 +9,7 @@
 - データセットURL: https://ckan.pf-sapporo.jp/dataset/sapporo_bear_appearance
 - CKAN API: https://ckan.pf-sapporo.jp/api/3/action/package_show?id=sapporo_bear_appearance
 - 変換元CSV: CKAN APIで取得できるCSVリソース一覧から、最新年のCSVを選択
+- 補助ソース: 札幌市公式ヒグマ出没情報ページ
+- 補助ソースURL: https://www.city.sapporo.jp/kurashi/animal/choju/kuma/syutsubotsu/
 
 本アプリは札幌市公式アプリではありません。表示内容は、公開CSVをMVP用途に変換して利用しています。
