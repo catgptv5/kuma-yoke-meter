@@ -276,7 +276,7 @@ private struct DataFreshnessNote: View {
             ForEach(feed?.sources ?? []) { source in
                 Text("\(source.name): \(source.recordCount)件 / 最新 \(source.latestSightingDate ?? "不明")")
                     .font(.caption)
-                    .foregroundStyle(source.status == "ok" ? .secondary : .orange)
+                    .foregroundStyle(source.status == "ok" ? Color.secondary : Color.orange)
             }
 
             if let staleWarningText {

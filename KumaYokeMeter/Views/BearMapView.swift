@@ -28,6 +28,18 @@ struct BearMapView: View {
         }
     }
 
+    private var visibleAssessments: [(sighting: BearSighting, assessment: SightingMapAssessment)] {
+        visibleSightings.map {
+            ($0, SightingMapAssessor.assess(sighting: $0, target: target))
+        }
+    }
+
+    private var elevatedRiskCount: Int {
+        visibleAssessments.count {
+            $0.assessment.grade == .cancelRecommended || $0.assessment.grade == .high
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             Map(position: $position) {
@@ -42,7 +54,9 @@ struct BearMapView: View {
                         Button {
                             selectedSighting = sighting
                         } label: {
-                            SightingPinView(style: pinStyle(for: sighting))
+                            SightingPinView(
+                                assessment: SightingMapAssessor.assess(sighting: sighting, target: target)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -69,6 +83,15 @@ struct BearMapView: View {
                     Label("\(visibleSightings.count)件表示", systemImage: "mappin")
                         .font(.subheadline.weight(.semibold))
 
+                    if elevatedRiskCount > 0 {
+                        Label("\(elevatedRiskCount)件", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.red.opacity(0.12), in: Capsule())
+                    }
+
                     Spacer()
 
                     Button {
@@ -81,11 +104,13 @@ struct BearMapView: View {
                 }
 
                 if timeFilter == .recent30 && visibleSightings.isEmpty {
-                    Text("直近30日の同梱データはありません。必要ならデータを更新してください。")
+                    Text("直近30日の表示データはありません。必要ならデータを更新してください。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                MapLegendView()
             }
             .padding(12)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -115,21 +140,6 @@ struct BearMapView: View {
             position = .region(.sapporoDefault)
         }
     }
-
-    private func pinStyle(for sighting: BearSighting) -> SightingPinStyle {
-        guard let observedAt = sighting.observedAt else {
-            return .older
-        }
-
-        let days = RiskEvaluator.daysBetween(observedAt, and: Date())
-        if days <= 7 {
-            return .lastSevenDays
-        }
-        if days <= 30 {
-            return .lastThirtyDays
-        }
-        return .older
-    }
 }
 
 private enum MapTimeFilter: String, CaseIterable, Identifiable {
@@ -150,46 +160,174 @@ private enum MapTimeFilter: String, CaseIterable, Identifiable {
     }
 }
 
-private enum SightingPinStyle {
-    case lastSevenDays
-    case lastThirtyDays
-    case older
+private struct SightingPinView: View {
+    let assessment: SightingMapAssessment
 
-    var color: Color {
-        switch self {
-        case .lastSevenDays:
+    var body: some View {
+        VStack(spacing: 2) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: assessment.kind.symbolName)
+                    .font(.system(size: iconSize, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: pinSize, height: pinSize)
+                    .background(pinColor, in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(borderColor, lineWidth: borderWidth)
+                    }
+                    .shadow(color: .black.opacity(0.22), radius: 4, y: 2)
+
+                if assessment.grade == .cancelRecommended {
+                    Image(systemName: "exclamationmark")
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(.white)
+                        .frame(width: 14, height: 14)
+                        .background(.red, in: Circle())
+                        .overlay {
+                            Circle()
+                                .stroke(.white, lineWidth: 1.5)
+                        }
+                        .offset(x: 4, y: -4)
+                }
+            }
+
+            if let label = assessment.daysAgoLabel {
+                Text(label)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(.white.opacity(0.75), lineWidth: 1)
+                    }
+            }
+        }
+        .accessibilityLabel("\(assessment.grade.displayName)、\(assessment.detailText)")
+    }
+
+    private var pinColor: Color {
+        switch assessment.freshness {
+        case .withinThreeDays:
             return .red
-        case .lastThirtyDays:
+        case .withinSevenDays:
             return .orange
+        case .withinThirtyDays:
+            return .yellow
         case .older:
             return .gray
+        case .unknown:
+            return Color.secondary
         }
     }
 
-    var size: CGFloat {
-        switch self {
-        case .lastSevenDays:
-            return 18
-        case .lastThirtyDays:
-            return 14
-        case .older:
-            return 10
+    private var borderColor: Color {
+        switch assessment.grade {
+        case .cancelRecommended:
+            return .red
+        case .high:
+            return .orange
+        case .caution:
+            return .white
+        case .reference:
+            return .white.opacity(0.75)
+        }
+    }
+
+    private var borderWidth: CGFloat {
+        switch assessment.grade {
+        case .cancelRecommended:
+            return 4
+        case .high:
+            return 3
+        case .caution:
+            return 2
+        case .reference:
+            return 1.5
+        }
+    }
+
+    private var pinSize: CGFloat {
+        switch assessment.grade {
+        case .cancelRecommended:
+            return 36
+        case .high:
+            return 32
+        case .caution:
+            return 28
+        case .reference:
+            return 24
+        }
+    }
+
+    private var iconSize: CGFloat {
+        switch assessment.grade {
+        case .cancelRecommended:
+            return 16
+        case .high:
+            return 15
+        case .caution:
+            return 13
+        case .reference:
+            return 12
         }
     }
 }
 
-private struct SightingPinView: View {
-    let style: SightingPinStyle
+private struct MapLegendView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                LegendDot(color: .red, text: "3日")
+                LegendDot(color: .orange, text: "7日")
+                LegendDot(color: .yellow, text: "30日")
+                LegendDot(color: .gray, text: "古い")
+            }
+
+            HStack(spacing: 10) {
+                LegendIcon(symbol: "eye.fill", text: "目撃")
+                LegendIcon(symbol: "camera.fill", text: "カメラ")
+                LegendIcon(symbol: "pawprint.fill", text: "痕跡")
+                LegendIcon(symbol: "exclamationmark.triangle.fill", text: "被害")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct LegendDot: View {
+    let color: Color
+    let text: String
 
     var body: some View {
-        Circle()
-            .fill(style.color)
-            .frame(width: style.size, height: style.size)
-            .overlay {
-                Circle()
-                    .stroke(.white, lineWidth: 2)
-            }
-            .shadow(radius: 2)
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 10, height: 10)
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct LegendIcon: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 12)
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
@@ -212,9 +350,36 @@ private struct SightingDetailSheet: View {
     let sighting: BearSighting
     let target: TripTarget?
 
+    private var assessment: SightingMapAssessment {
+        SightingMapAssessor.assess(sighting: sighting, target: target)
+    }
+
     var body: some View {
         NavigationStack {
             List {
+                Section("地図上の評価") {
+                    HStack {
+                        Label(assessment.grade.displayName, systemImage: assessment.kind.symbolName)
+                            .font(.headline)
+                            .foregroundStyle(assessment.grade.tint)
+
+                        Spacer()
+
+                        Text("スコア \(assessment.score)")
+                            .font(.caption.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(assessment.detailText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    if let daysAgoLabel = assessment.daysAgoLabel {
+                        Text("経過: \(daysAgoLabel)")
+                            .font(.subheadline)
+                    }
+                }
+
                 Section("日時") {
                     Text(sighting.displayDateTime)
                 }
@@ -259,6 +424,21 @@ private struct SightingDetailSheet: View {
         let to = CLLocation(latitude: sighting.latitude, longitude: sighting.longitude)
         let distanceKm = from.distance(from: to) / 1_000
         return String(format: "%.1fkm", distanceKm)
+    }
+}
+
+private extension MapRiskGrade {
+    var tint: Color {
+        switch self {
+        case .cancelRecommended:
+            return .red
+        case .high:
+            return .orange
+        case .caution:
+            return .yellow
+        case .reference:
+            return Color.secondary
+        }
     }
 }
 

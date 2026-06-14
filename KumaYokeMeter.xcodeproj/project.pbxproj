@@ -21,6 +21,7 @@
 		4A000001000000000000000C /* TripTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000001000000000000010C /* TripTarget.swift */; };
 		4A000001000000000000000D /* TripPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000001000000000000010D /* TripPlanner.swift */; };
 		4A000001000000000000000E /* RemoteSightingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000001000000000000010E /* RemoteSightingClient.swift */; };
+		4A000001000000000000000F /* SightingMapAssessment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000001000000000000010F /* SightingMapAssessment.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		4A000001000000000000010C /* TripTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTarget.swift; sourceTree = "<group>"; };
 		4A000001000000000000010D /* TripPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanner.swift; sourceTree = "<group>"; };
 		4A000001000000000000010E /* RemoteSightingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSightingClient.swift; sourceTree = "<group>"; };
+		4A000001000000000000010F /* SightingMapAssessment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SightingMapAssessment.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +93,7 @@
 				4A0000010000000000000107 /* UserLocationManager.swift */,
 				4A000001000000000000010D /* TripPlanner.swift */,
 				4A000001000000000000010E /* RemoteSightingClient.swift */,
+				4A000001000000000000010F /* SightingMapAssessment.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -201,6 +204,7 @@
 				4A0000010000000000000007 /* UserLocationManager.swift in Sources */,
 				4A000001000000000000000D /* TripPlanner.swift in Sources */,
 				4A000001000000000000000E /* RemoteSightingClient.swift in Sources */,
+				4A000001000000000000000F /* SightingMapAssessment.swift in Sources */,
 				4A0000010000000000000008 /* RiskDashboardView.swift in Sources */,
 				4A0000010000000000000009 /* BearMapView.swift in Sources */,
 				4A000001000000000000000A /* DepartureChecklistView.swift in Sources */,

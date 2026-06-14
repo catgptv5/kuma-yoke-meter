@@ -36,5 +36,31 @@ let noInfoSummary = RiskEvaluator.evaluate(
 
 precondition(noInfoSummary.level == .noRecentInformation, "情報なしは安全ではなく通常警戒にするべきです")
 
-print("RiskEvaluator smoke test passed")
+let assessment = SightingMapAssessor.assess(
+    sighting: oneKmRecent,
+    target: target,
+    referenceDate: referenceDate
+)
 
+precondition(assessment.kind == .sighting, "ヒグマを目撃は目撃分類になるべきです")
+precondition(assessment.grade == .cancelRecommended, "1km・3日以内の目撃は地図上でも中止推奨になるべきです")
+
+let traceAssessment = SightingMapAssessor.assess(
+    sighting: BearSighting(
+        id: "trace",
+        date: "2026-06-10",
+        time: "",
+        ward: "中央区",
+        place: "テスト地点付近",
+        latitude: 43.0200,
+        longitude: 141.0000,
+        detail: "足跡を確認",
+        sourceYear: 2026
+    ),
+    target: target,
+    referenceDate: referenceDate
+)
+
+precondition(traceAssessment.kind == .trace, "足跡を確認は痕跡分類になるべきです")
+
+print("RiskEvaluator smoke test passed")
