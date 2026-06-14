@@ -224,11 +224,11 @@ private struct NearbySightingsList: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        Text(nearby.sighting.place)
+                        Text(nearby.sighting.displayLocation)
                             .font(.subheadline)
                             .lineLimit(2)
 
-                        Text(nearby.sighting.detail)
+                        Text(nearby.sighting.displayDetail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -254,7 +254,7 @@ private struct DataFreshnessNote: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("データ: 札幌市オープンデータ \(totalCount)件", systemImage: "doc.text")
+            Label("データ: 自治体公式情報 \(totalCount)件", systemImage: "doc.text")
                 .font(.footnote.weight(.semibold))
 
             Text("表示元: \(dataSource.displayName)\(isRefreshing ? "・更新確認中" : "")")
@@ -273,11 +273,31 @@ private struct DataFreshnessNote: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let municipalityText {
+                Text("対象自治体: \(municipalityText)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             ForEach(feed?.sources ?? []) { source in
-                Text("\(source.name): \(source.recordCount)件 / 最新 \(source.latestSightingDate ?? "不明")")
+                Text("\(source.name): \(source.recordCount)件 / 最新 \(source.latestSightingDate ?? "不明") / \(source.status)")
                     .font(.caption)
                     .foregroundStyle(source.status == "ok" ? Color.secondary : Color.orange)
             }
+
+            if let errors = feed?.errors, !errors.isEmpty {
+                Text("一部データソースの取得に失敗しました。取得できた情報だけで表示しています。")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            Text("位置精度が district / road の情報は、正確な地点ではなく地区・道路周辺の目安です。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text("このアプリは自治体公式ページ等の公開情報をもとにしています。情報がない場所でもヒグマと遭遇する可能性があります。出発前には各自治体の公式情報も確認してください。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if let staleWarningText {
                 VStack(alignment: .leading, spacing: 6) {
@@ -317,6 +337,17 @@ private struct DataFreshnessNote: View {
         return generatedAt
     }
 
+    private var municipalityText: String? {
+        guard let records = feed?.records else {
+            return nil
+        }
+        let names = Set(records.compactMap(\.municipality).filter { !$0.isEmpty })
+        guard !names.isEmpty else {
+            return nil
+        }
+        return names.sorted().joined(separator: "、")
+    }
+
     private var staleWarningText: String? {
         guard let latestSightingDate = feed?.latestSightingDate,
               let latestDate = SightingDateParser.date(dateString: latestSightingDate, timeString: "") else {
@@ -328,7 +359,7 @@ private struct DataFreshnessNote: View {
             return nil
         }
 
-        return "注意: データ最終出没日が古いです。この日以降の情報が札幌市公式ページに掲載されている可能性があります。"
+        return "注意: データ最終出没日が古いです。この日以降の情報が自治体公式ページに掲載されている可能性があります。"
     }
 }
 

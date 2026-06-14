@@ -84,8 +84,12 @@ struct RiskEvaluator {
             guard let observedAt = sighting.observedAt else {
                 return nil
             }
+            guard let latitude = sighting.latitude,
+                  let longitude = sighting.longitude else {
+                return nil
+            }
 
-            let location = CLLocation(latitude: sighting.latitude, longitude: sighting.longitude)
+            let location = CLLocation(latitude: latitude, longitude: longitude)
             let distanceKm = targetLocation.distance(from: location) / 1_000
             return (sighting, observedAt, distanceKm)
         }
@@ -163,4 +167,3 @@ struct RiskEvaluator {
         }
     }
 }
-

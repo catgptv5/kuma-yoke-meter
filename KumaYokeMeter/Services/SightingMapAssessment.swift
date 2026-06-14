@@ -156,7 +156,7 @@ struct SightingMapAssessor {
         target: TripTarget?,
         referenceDate: Date = Date()
     ) -> SightingMapAssessment {
-        let kind = eventKind(for: sighting.detail)
+        let kind = eventKind(for: sighting.displayDetail)
         let daysAgo = daysAgo(for: sighting, referenceDate: referenceDate)
         let freshness = freshness(for: daysAgo)
         let distanceKm = distanceKm(from: target, to: sighting)
@@ -229,9 +229,13 @@ struct SightingMapAssessor {
         guard let target else {
             return nil
         }
+        guard let latitude = sighting.latitude,
+              let longitude = sighting.longitude else {
+            return nil
+        }
 
         let targetLocation = CLLocation(latitude: target.coordinate.latitude, longitude: target.coordinate.longitude)
-        let sightingLocation = CLLocation(latitude: sighting.latitude, longitude: sighting.longitude)
+        let sightingLocation = CLLocation(latitude: latitude, longitude: longitude)
         return targetLocation.distance(from: sightingLocation) / 1_000
     }
 
@@ -276,4 +280,3 @@ struct SightingMapAssessor {
         return .reference
     }
 }
-

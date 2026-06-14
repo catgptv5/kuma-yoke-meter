@@ -29,9 +29,13 @@ struct BearMapView: View {
     }
 
     private var visibleAssessments: [(sighting: BearSighting, assessment: SightingMapAssessment)] {
-        visibleSightings.map {
+        visibleMapSightings.map {
             ($0, SightingMapAssessor.assess(sighting: $0, target: target))
         }
+    }
+
+    private var visibleMapSightings: [BearSighting] {
+        visibleSightings.filter { $0.coordinate != nil }
     }
 
     private var elevatedRiskCount: Int {
@@ -49,8 +53,9 @@ struct BearMapView: View {
                     }
                 }
 
-                ForEach(visibleSightings) { sighting in
-                    Annotation(sighting.ward, coordinate: sighting.coordinate) {
+                ForEach(visibleMapSightings) { sighting in
+                    if let coordinate = sighting.coordinate {
+                        Annotation(sighting.displayArea, coordinate: coordinate) {
                         Button {
                             selectedSighting = sighting
                         } label: {
@@ -59,6 +64,7 @@ struct BearMapView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        }
                     }
                 }
 
@@ -80,7 +86,7 @@ struct BearMapView: View {
                 .pickerStyle(.segmented)
 
                 HStack {
-                    Label("\(visibleSightings.count)件表示", systemImage: "mappin")
+                    Label("\(visibleMapSightings.count)件表示", systemImage: "mappin")
                         .font(.subheadline.weight(.semibold))
 
                     if elevatedRiskCount > 0 {
@@ -103,7 +109,7 @@ struct BearMapView: View {
                     .accessibilityLabel("判定地点へ移動")
                 }
 
-                if timeFilter == .recent30 && visibleSightings.isEmpty {
+                if timeFilter == .recent30 && visibleMapSightings.isEmpty {
                     Text("直近30日の表示データはありません。必要ならデータを更新してください。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -385,13 +391,19 @@ private struct SightingDetailSheet: View {
                 }
 
                 Section("場所") {
-                    Text(sighting.place)
-                    Text(sighting.ward)
+                    Text(sighting.displayLocation)
+                    Text(sighting.displayArea)
                         .foregroundStyle(.secondary)
+
+                    if let locationAccuracyText {
+                        Text(locationAccuracyText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("内容") {
-                    Text(sighting.detail)
+                    Text(sighting.displayDetail)
                 }
 
                 if let sourceName = sighting.sourceName {
@@ -419,11 +431,25 @@ private struct SightingDetailSheet: View {
         guard let target else {
             return nil
         }
+        guard let latitude = sighting.latitude,
+              let longitude = sighting.longitude else {
+            return nil
+        }
 
         let from = CLLocation(latitude: target.coordinate.latitude, longitude: target.coordinate.longitude)
-        let to = CLLocation(latitude: sighting.latitude, longitude: sighting.longitude)
+        let to = CLLocation(latitude: latitude, longitude: longitude)
         let distanceKm = from.distance(from: to) / 1_000
         return String(format: "%.1fkm", distanceKm)
+    }
+
+    private var locationAccuracyText: String? {
+        guard let accuracy = sighting.locationAccuracy else {
+            return nil
+        }
+        if let meters = sighting.locationAccuracyMeters {
+            return "位置精度: \(accuracy)（目安 \(meters)m）"
+        }
+        return "位置精度: \(accuracy)"
     }
 }
 

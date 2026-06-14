@@ -37,7 +37,7 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Build JSON from Sapporo CKAN
+      - name: Build integrated bear sightings JSON
         run: |
           python Tools/convert_sapporo_bear_csv.py \
             --output public/bear_sightings.json \
