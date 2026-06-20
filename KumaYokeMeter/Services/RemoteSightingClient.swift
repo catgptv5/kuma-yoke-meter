@@ -22,7 +22,11 @@ struct RemoteSightingClient {
             throw ClientError.missingURL
         }
 
-        let (data, response) = try await urlSession.data(from: remoteURL)
+        var request = URLRequest(url: remoteURL)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
             throw ClientError.invalidResponse
@@ -32,9 +36,8 @@ struct RemoteSightingClient {
     }
 
     private static var defaultRemoteURL: URL? {
-        guard let rawValue = Bundle.main.object(forInfoDictionaryKey: "KumaSightingsJSONURL") as? String else {
-            return nil
-        }
+        let configuredValue = Bundle.main.object(forInfoDictionaryKey: "KumaSightingsJSONURL") as? String
+        let rawValue = configuredValue ?? "https://catgptv5.github.io/kuma-yoke-meter/bear_sightings.json"
 
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("https://"),
